@@ -18,10 +18,16 @@
 package org.apache.hertzbeat.alert.controller;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup;
+
 import java.util.Collections;
 import java.util.LinkedList;
+import java.util.List;
+
 import org.apache.hertzbeat.alert.service.AlertDefineService;
 import org.apache.hertzbeat.common.constants.CommonConstants;
 import org.apache.hertzbeat.common.entity.alerter.AlertDefine;
@@ -33,6 +39,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
+
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.domain.Specification;
@@ -48,67 +55,64 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 @ExtendWith(MockitoExtension.class)
 class AlertDefinesControllerTest {
 
-    private MockMvc mockMvc;
+	private MockMvc mockMvc;
 
-    @InjectMocks
-    private AlertDefinesController alertDefinesController;
+	@InjectMocks
+	private AlertDefinesController alertDefinesController;
 
-    @Mock
-    private AlertDefineService alertDefineService;
+	@Mock
+	private AlertDefineService alertDefineService;
 
-    private AlertDefine alertDefine;
+	private AlertDefine alertDefine;
 
-    @BeforeEach
-    void setUp() {
+	@BeforeEach
+	void setUp() {
 
-        this.mockMvc = MockMvcBuilders.standaloneSetup(alertDefinesController).build();
+		this.mockMvc = standaloneSetup(alertDefinesController).build();
 
-        alertDefine = AlertDefine.builder()
-                .id(9L)
-                .app("linux")
-                .metric("disk")
-                .field("usage")
-                .expr("x")
-                .times(1)
-                .tags(new LinkedList<>())
-                .build();
+		alertDefine = AlertDefine.builder()
+				.id(9L)
+				.app("linux")
+				.metric("disk")
+				.field("usage")
+				.expr("x")
+				.times(1)
+				.tags(new LinkedList<>())
+				.build();
+	}
 
-    }
+	@Test
+	void getAlertDefines() throws Exception {
 
-    @Test
-    void getAlertDefines() throws Exception {
+        when(alertDefineService.getAlertDefines(List.of(1L), "Test", (byte) 1, "id", "desc", 1, 10))
+                .thenReturn(new PageImpl<>(Collections.singletonList(alertDefine)));
 
-        PageImpl<AlertDefine> alertDefines = new PageImpl<>(Collections.singletonList(alertDefine));
-        Mockito.when(alertDefineService.getAlertDefines(
-                        any(Specification.class),
-                        any(PageRequest.class))
-        ).thenReturn(alertDefines);
+		mockMvc.perform(MockMvcRequestBuilders.get(
+								"/api/alert/defines")
+						.param("ids", "1")
+						.param("search", "Test")
+                        .param("priority", "1")
+						.param("sort", "id")
+						.param("order", "desc")
+						.param("pageIndex", "1")
+						.param("pageSize", "10"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.code").value((int) CommonConstants.SUCCESS_CODE))
+				.andExpect(jsonPath("$.data.content[0].app").value("linux"))
+				.andExpect(jsonPath("$.data.content[0].id").value("9"))
+				.andExpect(jsonPath("$.data.content[0].metric").value("disk"))
+				.andReturn();
+	}
 
+	@Test
+	void deleteAlertDefines() throws Exception {
 
-        mockMvc.perform(MockMvcRequestBuilders.get(
-                "/api/alert/defines")
-                .param("ids", "1")
-                .param("search", "Test")
-                .param("sort", "id")
-                .param("order", "desc")
-                .param("pageIndex", "0")
-                .param("pageSize", "8"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value((int) CommonConstants.SUCCESS_CODE))
-                .andExpect(jsonPath("$.data.content[0].app").value("linux"))
-                .andExpect(jsonPath("$.data.content[0].id").value("9"))
-                .andExpect(jsonPath("$.data.content[0].metric").value("disk"))
-                .andReturn();
-    }
-
-    @Test
-    void deleteAlertDefines() throws Exception {
-        this.mockMvc.perform(MockMvcRequestBuilders.delete("/api/alert/defines")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(JsonUtil.toJson(Collections.singletonList(1))))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value((int) CommonConstants.SUCCESS_CODE))
-                .andReturn();
-    }
+		this.mockMvc.perform(MockMvcRequestBuilders.delete("/api/alert/defines")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(JsonUtil.toJson(Collections.singletonList(1))))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.code").value((int) CommonConstants.SUCCESS_CODE))
+				.andReturn();
+	}
 
 }
